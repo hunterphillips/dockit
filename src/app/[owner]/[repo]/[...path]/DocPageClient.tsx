@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import DocViewer from "@/components/docs/DocViewer";
+import RawEditor from "@/components/docs/RawEditor";
 import { useAIPanel } from "@/context/AIPanelContext";
 import styles from "./DocPageClient.module.css";
 
@@ -30,6 +31,7 @@ export default function DocPageClient({
   filePath,
 }: Props) {
   const [mode, setMode] = useState<"view" | "edit">("view");
+  const [editorType, setEditorType] = useState<"wysiwyg" | "raw">("wysiwyg");
   const [content, setContent] = useState(initialContent);
   const [sha, setSha] = useState(initialSha);
 
@@ -61,9 +63,16 @@ export default function DocPageClient({
           <div className={styles.viewToolbar}>
             <button
               className={styles.editBtn}
-              onClick={() => setMode("edit")}
+              onClick={() => { setEditorType("wysiwyg"); setMode("edit"); }}
             >
               Edit
+            </button>
+            <button
+              className={styles.markdownBtn}
+              onClick={() => { setEditorType("raw"); setMode("edit"); }}
+              title="Edit raw markdown"
+            >
+              Markdown
             </button>
           </div>
           <DocViewer
@@ -76,8 +85,20 @@ export default function DocPageClient({
         </div>
       )}
 
-      {mode === "edit" && (
+      {mode === "edit" && editorType === "wysiwyg" && (
         <DocEditor
+          owner={owner}
+          repo={repo}
+          filePath={filePath}
+          initialContent={content}
+          sha={sha}
+          onSave={handleSave}
+          onCancel={() => setMode("view")}
+        />
+      )}
+
+      {mode === "edit" && editorType === "raw" && (
+        <RawEditor
           owner={owner}
           repo={repo}
           filePath={filePath}

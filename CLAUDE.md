@@ -21,7 +21,8 @@ Known breaking change already encountered: auth middleware is `src/proxy.ts`, no
 - **BlockNote** (`@blocknote/react`, `@blocknote/mantine`) — WYSIWYG block editor
 - **react-markdown** + remark-gfm + remark-frontmatter + rehype-raw — doc viewer
 - **MiniSearch** — client-side full-text search index
-- **@anthropic-ai/sdk** — AI assistant (not yet installed; Phase 9 pending)
+- **@anthropic-ai/sdk** — AI assistant; streaming Q&A + edit-suggestion mode
+- **diff** — client-side unified diff for AI edit preview
 
 ## Dev commands
 
@@ -54,6 +55,8 @@ src/
         file/route.ts                 # GET/PUT — read or write a file; PUT accepts rawBase64 flag for binary
         commit/route.ts               # POST — multi-file atomic commit via Git Data API
         scaffold/route.ts             # POST — initialize default doc template in a repo
+      ai/
+        chat/route.ts                 # POST — qa mode: SSE stream; edit mode: full JSON { proposed }
   components/
     layout/
       AppShell.tsx                    # Grid layout (sidebar + header + main)
@@ -63,9 +66,13 @@ src/
     docs/
       DocViewer.tsx                   # react-markdown renderer (GFM, raw HTML, frontmatter)
       DocEditor.tsx                   # BlockNote WYSIWYG editor; handles SHA conflict detection
+    ai/
+      ChatPanel.tsx                   # Fixed slide-out AI panel; streaming Q&A + edit mode
+      DiffPreview.tsx                 # Unified diff view; Apply & Commit → PUT file + updateSearchEntry
     ProjectSelector.tsx               # Landing page: repo grid, init docs button
   context/
     ProjectContext.tsx                # Provides tree, config, searchIndex, refreshTree, updateSearchEntry
+    AIPanelContext.tsx                # AI panel open state + docState bridge between ChatPanel and DocPageClient
   lib/
     auth.ts                           # next-auth config + getToken() helper
     github-client.ts                  # Octokit wrappers: listRepos, getRepoTree, getFile, putFile, commitFiles
@@ -73,6 +80,7 @@ src/
     taxonomy.ts                       # Default doc template, config parsing, getDisplayName
     search.ts                         # MiniSearch index: buildSearchIndex, searchIndex, SearchResult
     assets.ts                         # uploadAsset() — encodes file as base64, commits to .meta/assets/
+    ai.ts                             # assembleDocContext() — fetches all docs, truncates at 150K chars
 ```
 
 ## Key conventions
@@ -103,6 +111,9 @@ Next.js 16 uses `src/proxy.ts` (not `src/middleware.ts`) for route middleware. T
 ### SHA-based concurrency
 On save, `DocEditor.tsx` passes the stored `sha` to `PUT /api/github/file`. A 409 response means someone else saved first → show conflict banner. The user must reload.
 
+### AI assistant
+`AIPanelContext` is the bridge between `ChatPanel` (fixed overlay, lives in `AppShell`) and `DocPageClient` (knows the current file path/content/sha). `DocPageClient` writes its state to context on every render; `onEditAppliedRef` is a callback ref ChatPanel calls after a successful commit to update DocPageClient's local state. Model: `claude-sonnet-4-6`.
+
 ## Environment variables
 
 Copy `.env.local.example` to `.env.local` and fill in:
@@ -128,7 +139,7 @@ DATABASE_URL=./dockit.db  # SQLite, Phase 10
 | 6 | Document editing (BlockNote, SHA concurrency) | ✅ Done |
 | 7 | Asset upload (.meta/assets/) | ✅ Done |
 | 8 | Full-text search (MiniSearch) | ✅ Done |
-| 9 | AI assistant (Anthropic, ChatPanel, DiffPreview) | 🔲 Pending |
+| 9 | AI assistant (Anthropic, ChatPanel, DiffPreview) | ✅ Done |
 | 10 | Share links (SQLite, read-only viewer) | 🔲 Pending |
 
 ## What's NOT in v1

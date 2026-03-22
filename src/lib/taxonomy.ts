@@ -52,6 +52,13 @@ export function getScaffoldFiles(): FileChange[] {
       ),
     },
     {
+      path: "docs/business-logic/_index.md",
+      content: indexContent(
+        "Business Logic",
+        "Core rules, data structures, and processes that define how this system behaves."
+      ),
+    },
+    {
       path: "docs/business-logic/data-model.md",
       content: docContent(
         "Data Model",
@@ -84,6 +91,13 @@ export function getScaffoldFiles(): FileChange[] {
       content: indexContent(
         "Outbound Integrations",
         "Systems this application sends data to — APIs called, events published, exports produced."
+      ),
+    },
+    {
+      path: "docs/roles-and-access/_index.md",
+      content: indexContent(
+        "Roles & Access",
+        "Who uses this system, what they can do, and how access is controlled."
       ),
     },
     {

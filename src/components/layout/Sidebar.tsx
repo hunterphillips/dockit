@@ -11,6 +11,7 @@ interface TreeSection {
   segment: string;
   label: string;
   icon: string;
+  hasIndex: boolean;
   children: TreeItem[];
 }
 
@@ -44,6 +45,7 @@ function buildTree(
 
   const topLevel: TreeItem[] = [];
   const sectionMap = new Map<string, TreeItem[]>();
+  const sectionsWithIndex = new Set<string>();
 
   for (const node of docNodes) {
     // Strip leading docs/
@@ -63,8 +65,11 @@ function buildTree(
       const section = parts[0];
       const filename = parts[parts.length - 1].replace(/\.md$/, "");
 
-      // Skip _index files — they are section landing pages, not sidebar items
-      if (filename === "_index") continue;
+      // Track which sections have a landing page, but don't list them as child items
+      if (filename === "_index") {
+        sectionsWithIndex.add(section);
+        continue;
+      }
 
       if (!sectionMap.has(section)) {
         sectionMap.set(section, []);
@@ -83,6 +88,7 @@ function buildTree(
       segment,
       label: getDisplayName(segment, config as Parameters<typeof getDisplayName>[1]),
       icon: config.icons?.[segment] ? "" : (SECTION_ICONS[segment] ?? "◦"),
+      hasIndex: sectionsWithIndex.has(segment),
       children,
     })
   );
@@ -168,15 +174,17 @@ export default function Sidebar({ owner, repo }: SidebarProps) {
 
           {openSections.has(section.segment) && (
             <div className={styles.treeChildren}>
-              {/* Section landing page link */}
-              <Link
-                href={`/${owner}/${repo}/docs/${section.segment}`}
-                className={`${styles.treeItem} ${styles.sectionIndex} ${
-                  pathname === `/${owner}/${repo}/docs/${section.segment}` ? styles.active : ""
-                }`}
-              >
-                Overview
-              </Link>
+              {/* Only show Overview link if a _index.md actually exists */}
+              {section.hasIndex && (
+                <Link
+                  href={`/${owner}/${repo}/docs/${section.segment}`}
+                  className={`${styles.treeItem} ${styles.sectionIndex} ${
+                    pathname === `/${owner}/${repo}/docs/${section.segment}` ? styles.active : ""
+                  }`}
+                >
+                  Overview
+                </Link>
+              )}
 
               {section.children.map((item) => (
                 <Link
