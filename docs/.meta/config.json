@@ -1,0 +1,14 @@
+{
+  "displayNames": {
+    "business-logic": "Business Logic",
+    "integrations": "Integrations",
+    "roles-and-access": "Roles & Access",
+    "decisions": "Decisions"
+  },
+  "icons": {
+    "business-logic": "layers",
+    "integrations": "link",
+    "roles-and-access": "users",
+    "decisions": "bookmark"
+  }
+}
