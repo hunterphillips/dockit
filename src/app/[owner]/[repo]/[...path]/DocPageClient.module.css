@@ -1,0 +1,29 @@
+.viewWrapper {
+  position: relative;
+}
+
+.viewToolbar {
+  position: absolute;
+  top: var(--space-8);
+  right: var(--space-8);
+  z-index: 5;
+}
+
+.editBtn {
+  height: 30px;
+  padding: 0 var(--space-4);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.editBtn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}

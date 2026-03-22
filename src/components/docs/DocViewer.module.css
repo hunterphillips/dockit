@@ -1,0 +1,50 @@
+.wrapper {
+  min-height: 100%;
+}
+
+/* Decision record metadata strip */
+.decisionMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: var(--content-max-width);
+  margin: var(--space-8) auto 0;
+  padding: 0 var(--space-8);
+}
+
+.decisionDate {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+}
+
+.statusBadge {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+  border: 1px solid;
+}
+
+.status_proposed {
+  color: var(--color-status-proposed);
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.status_accepted {
+  color: var(--color-status-accepted);
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.status_deprecated {
+  color: var(--color-text-tertiary);
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+.status_superseded {
+  color: var(--color-status-superseded);
+  border-color: #fecaca;
+  background: #fff1f2;
+}

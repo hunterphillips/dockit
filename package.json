@@ -1,5 +1,5 @@
 {
-  "name": "dockit-init",
+  "name": "dockit",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -8,9 +8,22 @@
     "start": "next start"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
+    "@blocknote/core": "^0.47.2",
+    "@blocknote/mantine": "^0.47.2",
+    "@blocknote/react": "^0.47.2",
+    "@octokit/rest": "^22.0.1",
+    "@types/diff": "^7.0.2",
+    "diff": "^8.0.3",
+    "minisearch": "^7.2.0",
     "next": "16.2.1",
+    "next-auth": "^5.0.0-beta.30",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "react-markdown": "^10.1.0",
+    "rehype-raw": "^7.0.0",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@types/node": "^20",
