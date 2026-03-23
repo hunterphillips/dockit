@@ -9,7 +9,7 @@ Target users: PMs, business analysts, architects, and product stakeholders. The 
 - **WYSIWYG editing** — BlockNote block editor with image/asset upload
 - **GitHub as backend** — every save is a commit; SHA-based concurrency prevents silent overwrites
 - **Full-text search** — client-side MiniSearch index built from all docs on load
-- **AI assistant** — streaming Q&A and AI-suggested edit mode (Claude claude-sonnet-4-6)
+- **AI assistant** — streaming Q&A and AI-suggested edit mode powered by Claude
 - **Auto-document** — link a source code repo, select files to focus on, and let an AI agent generate documentation by reading them
 - **Unified diff preview** — review AI-proposed edits before applying
 
@@ -69,55 +69,13 @@ Open [http://localhost:3000](http://localhost:3000). Sign in with GitHub and sel
 
 ```
 src/
-  app/
-    layout.tsx                       # Root layout — Inter font, SessionProvider
-    page.tsx                         # Landing — project selector (requires auth)
-    login/page.tsx                   # Sign-in page
-    proxy.ts                         # Auth middleware (Next.js 16: proxy.ts, not middleware.ts)
-    [owner]/[repo]/
-      layout.tsx                     # Project layout — AppShell + ProjectProvider
-      page.tsx                       # Overview page (docs/overview.md)
-      [...path]/
-        page.tsx                     # Doc page — server fetches file + SHA
-        DocPageClient.tsx            # Client: view/edit toggle, auto-doc modal + SSE consumer
-    api/
-      github/
-        repos/route.ts               # GET — list user repos (filtered by dockit topic)
-        tree/route.ts                # GET — repo file tree
-        file/route.ts                # GET/PUT — read or write a file
-        commit/route.ts              # POST — atomic multi-file commit
-        scaffold/route.ts            # POST — initialize default doc template
-        project/link/route.ts        # PUT — set or clear linkedRepo in config
-      ai/
-        chat/route.ts                # POST — Q&A (SSE) or edit-suggestion mode
-        auto-doc/route.ts            # POST — agentic doc generation from source repo (SSE)
-  components/
-    layout/
-      AppShell.tsx                   # Three-panel grid layout
-      Sidebar.tsx                    # Collapsible doc tree
-      Header.tsx                     # Breadcrumb, search, AI toggle, repo link
-      SearchBar.tsx                  # Live full-text search dropdown
-    docs/
-      DocViewer.tsx                  # react-markdown renderer
-      DocEditor.tsx                  # BlockNote editor + SHA conflict detection
-      RawEditor.tsx                  # Plain textarea markdown editor
-      AutoDocModal.tsx               # File selection modal before auto-doc runs
-    ai/
-      ChatPanel.tsx                  # Slide-out AI panel (Q&A + edit mode)
-      DiffPreview.tsx                # Unified diff view with apply-and-commit
-  context/
-    ProjectContext.tsx               # Tree, config, search index
-    AIPanelContext.tsx               # AI panel state + DocPageClient bridge
-  lib/
-    auth.ts                          # next-auth config + getToken() helper
-    github-client.ts                 # Octokit wrappers
-    markdown.ts                      # Frontmatter parsing, image resolution
-    taxonomy.ts                      # Default doc template, config parsing
-    search.ts                        # MiniSearch index helpers
-    assets.ts                        # Binary asset upload to .meta/assets/
-    ai.ts                            # assembleDocContext() for AI prompts
-    auto-doc-agent.ts                # Agentic Anthropic loop; selectedPaths focus hint; graceful wrap-up at limits
+  app/               # Next.js App Router — pages, layouts, API routes
+  components/        # UI components (layout/, docs/, ai/)
+  context/           # React context (ProjectContext, AIPanelContext)
+  lib/               # Server-side utilities (GitHub client, auth, AI agent, search)
 ```
+
+See `CLAUDE.md` for the full file-level breakdown and architectural details.
 
 ## Dev commands
 
@@ -127,10 +85,3 @@ npm run build    # production build + type check
 npm run start    # start production server
 ```
 
-## Key conventions
-
-- **Auth**: all GitHub tokens stay server-side. `getToken()` throws if no token → API routes return 401.
-- **SHA concurrency**: pass the current `sha` on every file write. A stale SHA returns 409 → conflict banner in the editor.
-- **Doc tree**: only `docs/` paths are shown in the sidebar. `docs/.meta/` is always hidden.
-- **CSS**: design tokens in `globals.css`, CSS Modules per component. No Tailwind, no dark mode.
-- **Middleware**: Next.js 16 uses `src/proxy.ts` (not `src/middleware.ts`).
