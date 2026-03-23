@@ -1,15 +1,16 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useRef } from "react";
-import dynamic from "next/dynamic";
-import DocViewer from "@/components/docs/DocViewer";
-import RawEditor from "@/components/docs/RawEditor";
-import { useAIPanel } from "@/context/AIPanelContext";
-import { useProject } from "@/context/ProjectContext";
-import styles from "./DocPageClient.module.css";
+import { useState, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
+import DocViewer from '@/components/docs/DocViewer';
+import RawEditor from '@/components/docs/RawEditor';
+import AutoDocModal from '@/components/docs/AutoDocModal';
+import { useAIPanel } from '@/context/AIPanelContext';
+import { useProject } from '@/context/ProjectContext';
+import styles from './DocPageClient.module.css';
 
 // BlockNote uses browser APIs — load client-side only
-const DocEditor = dynamic(() => import("@/components/docs/DocEditor"), {
+const DocEditor = dynamic(() => import('@/components/docs/DocEditor'), {
   ssr: false,
 });
 
@@ -31,16 +32,19 @@ export default function DocPageClient({
   branch,
   filePath,
 }: Props) {
-  const [mode, setMode] = useState<"view" | "edit">("view");
-  const [editorType, setEditorType] = useState<"wysiwyg" | "raw">("wysiwyg");
+  const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const [editorType, setEditorType] = useState<'wysiwyg' | 'raw'>('wysiwyg');
   const [content, setContent] = useState(initialContent);
   const [sha, setSha] = useState(initialSha);
 
   const { setDocState, onEditAppliedRef } = useAIPanel();
   const { config } = useProject();
 
-  const [autoDocStatus, setAutoDocStatus] = useState<"idle" | "running" | "done" | "error">("idle");
-  const [autoDocMessage, setAutoDocMessage] = useState("");
+  const [autoDocStatus, setAutoDocStatus] = useState<
+    'idle' | 'running' | 'done' | 'error'
+  >('idle');
+  const [autoDocMessage, setAutoDocMessage] = useState('');
+  const [autoDocModalOpen, setAutoDocModalOpen] = useState(false);
   const autoDocAbortRef = useRef<AbortController | null>(null);
 
   // Register current doc state in AI panel context
@@ -53,70 +57,75 @@ export default function DocPageClient({
   onEditAppliedRef.current = (newContent: string, newSha: string) => {
     setContent(newContent);
     setSha(newSha);
-    setMode("view");
+    setMode('view');
   };
 
   const handleSave = (newContent: string, newSha: string) => {
     setContent(newContent);
     setSha(newSha);
-    setMode("view");
+    setMode('view');
   };
 
-  async function startAutoDoc() {
+  function deriveDocTitle(path: string): string {
+    const filename = path.split('/').pop()?.replace(/\.md$/, '') ?? path;
+    return filename.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  async function startAutoDoc(selectedPaths: string[] = []) {
     autoDocAbortRef.current = new AbortController();
-    setAutoDocStatus("running");
-    setAutoDocMessage("Starting…");
+    setAutoDocStatus('running');
+    setAutoDocMessage('Starting…');
 
     try {
-      const res = await fetch("/api/ai/auto-doc", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ owner, repo, filePath, sha }),
+      const res = await fetch('/api/ai/auto-doc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner, repo, filePath, sha, selectedPaths }),
         signal: autoDocAbortRef.current.signal,
       });
 
       if (!res.ok || !res.body) {
-        setAutoDocMessage("Request failed");
-        setAutoDocStatus("error");
+        setAutoDocMessage('Request failed');
+        setAutoDocStatus('error');
         return;
       }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = "";
+      let buffer = '';
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
 
         for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
+          if (!line.startsWith('data: ')) continue;
           try {
             const event = JSON.parse(line.slice(6)) as {
-              type: "status" | "done" | "error";
+              type: 'status' | 'done' | 'error';
               message?: string;
               sha?: string;
               content?: string;
             };
 
-            if (event.type === "status") {
-              setAutoDocMessage(event.message ?? "");
-            } else if (event.type === "done") {
+            if (event.type === 'status') {
+              setAutoDocMessage(event.message ?? '');
+            } else if (event.type === 'done') {
               if (event.content) setContent(event.content);
               if (event.sha) setSha(event.sha);
-              setAutoDocStatus("done");
-              setAutoDocMessage("Done");
+              setAutoDocStatus('done');
+              setAutoDocMessage('Done');
               setTimeout(() => {
-                setAutoDocStatus("idle");
-                setAutoDocMessage("");
+                setAutoDocStatus('idle');
+                setAutoDocMessage('');
               }, 2000);
-            } else if (event.type === "error") {
-              setAutoDocMessage(event.message ?? "Unknown error");
-              setAutoDocStatus("error");
+            } else if (event.type === 'error') {
+              setAutoDocMessage(event.message ?? 'Unknown error');
+              setAutoDocStatus('error');
             }
           } catch {
             // malformed event — skip
@@ -124,38 +133,48 @@ export default function DocPageClient({
         }
       }
     } catch (err) {
-      if ((err as Error).name !== "AbortError") {
-        setAutoDocMessage(err instanceof Error ? err.message : "Unknown error");
-        setAutoDocStatus("error");
+      if ((err as Error).name !== 'AbortError') {
+        setAutoDocMessage(err instanceof Error ? err.message : 'Unknown error');
+        setAutoDocStatus('error');
       }
     }
   }
 
   return (
     <>
-      {mode === "view" && (
+      {mode === 'view' && (
         <div className={styles.viewWrapper}>
           <div className={styles.viewToolbar}>
-            {config.linkedRepo && (
-              autoDocStatus === "idle" ? (
-                <button className={styles.autoDocBtn} onClick={startAutoDoc}>
-                  ✦ Auto-document
+            {config.linkedRepo &&
+              (autoDocStatus === 'idle' ? (
+                <button
+                  className={styles.autoDocBtn}
+                  onClick={() => setAutoDocModalOpen(true)}
+                >
+                  ✦ Auto
                 </button>
               ) : (
-                <span className={`${styles.autoDocStatus} ${autoDocStatus === "error" ? styles.autoDocStatusError : ""}`}>
+                <span
+                  className={`${styles.autoDocStatus} ${autoDocStatus === 'error' ? styles.autoDocStatusError : ''}`}
+                >
                   {autoDocMessage}
                 </span>
-              )
-            )}
+              ))}
             <button
               className={styles.editBtn}
-              onClick={() => { setEditorType("wysiwyg"); setMode("edit"); }}
+              onClick={() => {
+                setEditorType('wysiwyg');
+                setMode('edit');
+              }}
             >
               Edit
             </button>
             <button
               className={styles.markdownBtn}
-              onClick={() => { setEditorType("raw"); setMode("edit"); }}
+              onClick={() => {
+                setEditorType('raw');
+                setMode('edit');
+              }}
               title="Edit raw markdown"
             >
               Markdown
@@ -171,7 +190,7 @@ export default function DocPageClient({
         </div>
       )}
 
-      {mode === "edit" && editorType === "wysiwyg" && (
+      {mode === 'edit' && editorType === 'wysiwyg' && (
         <DocEditor
           owner={owner}
           repo={repo}
@@ -179,11 +198,11 @@ export default function DocPageClient({
           initialContent={content}
           sha={sha}
           onSave={handleSave}
-          onCancel={() => setMode("view")}
+          onCancel={() => setMode('view')}
         />
       )}
 
-      {mode === "edit" && editorType === "raw" && (
+      {mode === 'edit' && editorType === 'raw' && (
         <RawEditor
           owner={owner}
           repo={repo}
@@ -191,7 +210,20 @@ export default function DocPageClient({
           initialContent={content}
           sha={sha}
           onSave={handleSave}
-          onCancel={() => setMode("view")}
+          onCancel={() => setMode('view')}
+        />
+      )}
+
+      {autoDocModalOpen && config.linkedRepo && (
+        <AutoDocModal
+          sourceOwner={config.linkedRepo.owner}
+          sourceRepo={config.linkedRepo.repo}
+          docTitle={deriveDocTitle(filePath)}
+          onStart={(selectedPaths) => {
+            setAutoDocModalOpen(false);
+            startAutoDoc(selectedPaths);
+          }}
+          onCancel={() => setAutoDocModalOpen(false)}
         />
       )}
     </>

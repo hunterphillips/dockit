@@ -10,7 +10,7 @@ Target users: PMs, business analysts, architects, and product stakeholders. The 
 - **GitHub as backend** — every save is a commit; SHA-based concurrency prevents silent overwrites
 - **Full-text search** — client-side MiniSearch index built from all docs on load
 - **AI assistant** — streaming Q&A and AI-suggested edit mode (Claude claude-sonnet-4-6)
-- **Auto-document** — link a source code repo and let an AI agent generate documentation by reading it
+- **Auto-document** — link a source code repo, select files to focus on, and let an AI agent generate documentation by reading them
 - **Unified diff preview** — review AI-proposed edits before applying
 
 ## Stack
@@ -79,7 +79,7 @@ src/
       page.tsx                       # Overview page (docs/overview.md)
       [...path]/
         page.tsx                     # Doc page — server fetches file + SHA
-        DocPageClient.tsx            # Client: view/edit toggle, auto-doc
+        DocPageClient.tsx            # Client: view/edit toggle, auto-doc modal + SSE consumer
     api/
       github/
         repos/route.ts               # GET — list user repos (filtered by dockit topic)
@@ -100,6 +100,8 @@ src/
     docs/
       DocViewer.tsx                  # react-markdown renderer
       DocEditor.tsx                  # BlockNote editor + SHA conflict detection
+      RawEditor.tsx                  # Plain textarea markdown editor
+      AutoDocModal.tsx               # File selection modal before auto-doc runs
     ai/
       ChatPanel.tsx                  # Slide-out AI panel (Q&A + edit mode)
       DiffPreview.tsx                # Unified diff view with apply-and-commit
@@ -114,7 +116,7 @@ src/
     search.ts                        # MiniSearch index helpers
     assets.ts                        # Binary asset upload to .meta/assets/
     ai.ts                            # assembleDocContext() for AI prompts
-    auto-doc-agent.ts                # Agentic Anthropic loop for auto-documentation
+    auto-doc-agent.ts                # Agentic Anthropic loop; selectedPaths focus hint; graceful wrap-up at limits
 ```
 
 ## Dev commands

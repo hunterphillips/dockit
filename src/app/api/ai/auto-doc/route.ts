@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "@/lib/auth";
 import { getFile, putFile } from "@/lib/github-client";
 import { parseConfig } from "@/lib/taxonomy";
@@ -9,21 +9,33 @@ function sseEvent(data: object): Uint8Array {
 }
 
 export async function POST(req: NextRequest) {
+  // Auth must be validated before the SSE stream is opened so we can return a
+  // proper HTTP 401 rather than an error buried in the stream body.
+  let token: string;
+  try {
+    token = await getToken();
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const body = (await req.json()) as {
     owner: string;
     repo: string;
     filePath: string;
     sha: string;
+    selectedPaths?: string[];
   };
-  const { owner, repo, filePath, sha } = body;
+  const { owner, repo, filePath, sha, selectedPaths } = body;
+
+  if (!filePath.startsWith("docs/")) {
+    return NextResponse.json({ error: "filePath must be within docs/" }, { status: 400 });
+  }
 
   const stream = new ReadableStream({
     async start(controller) {
       const enqueue = (data: object) => controller.enqueue(sseEvent(data));
 
       try {
-        const token = await getToken();
-
         const { content: configContent } = await getFile(
           token,
           owner,
@@ -49,6 +61,7 @@ export async function POST(req: NextRequest) {
           sourceRepo,
           docFilePath: filePath,
           existingContent,
+          selectedPaths,
           onProgress: (message) => enqueue({ type: "status", message }),
         });
 

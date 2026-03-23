@@ -67,6 +67,9 @@ export async function PUT(req: NextRequest) {
     if (!owner || !repo || !path || content === undefined) {
       return NextResponse.json({ error: "owner, repo, path, and content are required" }, { status: 400 });
     }
+    if (!path.startsWith("docs/")) {
+      return NextResponse.json({ error: "Writes are restricted to the docs/ directory" }, { status: 400 });
+    }
 
     const commitMessage = message ?? `Update ${path.split("/").pop()}`;
     // For binary assets, bypass the UTF-8 encode step in putFile

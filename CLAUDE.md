@@ -46,20 +46,20 @@ src/
       page.tsx                        # Overview page (renders docs/overview.md)
       [...path]/
         page.tsx                      # Doc page — server fetches file + SHA, renders DocPageClient
-        DocPageClient.tsx             # Client: view/edit toggle
+        DocPageClient.tsx             # Client: view/edit toggle, auto-doc modal trigger + SSE consumer
     api/
       auth/[...nextauth]/route.ts     # next-auth handler
       github/
         repos/route.ts                # GET — list user's repos
         tree/route.ts                 # GET — fetch repo file tree (filters .meta/)
-        file/route.ts                 # GET/PUT — read or write a file; PUT accepts rawBase64 flag for binary
+        file/route.ts                 # GET/PUT — read or write a file; PUT restricted to docs/ paths; rawBase64 flag for binary
         commit/route.ts               # POST — multi-file atomic commit via Git Data API
         scaffold/route.ts             # POST — initialize default doc template in a repo
         project/route.ts              # POST — create new dockit repo (tagged + scaffolded)
         project/link/route.ts         # PUT — set or clear linkedRepo in docs/.meta/config.json
       ai/
         chat/route.ts                 # POST — qa mode: SSE stream; edit mode: full JSON { proposed }
-        auto-doc/route.ts             # POST — SSE; runs auto-doc agent against linked source repo, commits result
+        auto-doc/route.ts             # POST — auth-checked before stream; SSE; runs agent, commits result
   components/
     layout/
       AppShell.tsx                    # Grid layout (sidebar + header + main)
@@ -69,6 +69,8 @@ src/
     docs/
       DocViewer.tsx                   # react-markdown renderer (GFM, raw HTML, frontmatter)
       DocEditor.tsx                   # BlockNote WYSIWYG editor; handles SHA conflict detection
+      RawEditor.tsx                   # Plain textarea markdown editor (fallback / power-user mode)
+      AutoDocModal.tsx                # Confirmation modal before auto-doc runs; fetches source tree, file/folder selection with checkboxes
     ai/
       ChatPanel.tsx                   # Fixed slide-out AI panel; streaming Q&A + edit mode
       DiffPreview.tsx                 # Unified diff view; Apply & Commit → PUT file + updateSearchEntry
@@ -84,7 +86,7 @@ src/
     search.ts                         # MiniSearch index: buildSearchIndex, searchIndex, SearchResult
     assets.ts                         # uploadAsset() — encodes file as base64, commits to .meta/assets/
     ai.ts                             # assembleDocContext() — fetches all docs, truncates at 150K chars
-    auto-doc-agent.ts                 # Claude tool_use loop: explores source repo (list_repo_tree + read_file), returns markdown
+    auto-doc-agent.ts                 # Claude tool_use loop: list_repo_tree + read_file; selectedPaths focus hint; graceful wrap-up at limits
 ```
 
 ## Key conventions
@@ -128,7 +130,9 @@ On save, `DocEditor.tsx` passes the stored `sha` to `PUT /api/github/file`. A 40
 
 ### Auto-doc agent
 
-When a project has `linkedRepo` set in config, a "✦ Auto-document" button appears on doc pages. It POSTs to `/api/ai/auto-doc`, which runs `runAutoDocAgent()` — a Claude tool_use loop with two tools (`list_repo_tree`, `read_file`, max 15 reads) that explores the source repo and writes the doc section. The route streams SSE progress events (`status` / `done` / `error`) and commits the result directly. The client reads the stream and updates content + SHA in place on completion. No review step.
+When a project has `linkedRepo` set in config, a "✦ Auto-document" button appears on doc pages. Clicking it opens `AutoDocModal` — a centered overlay that fetches the source repo's file tree and lets the user select specific files/folders to focus the agent on. Folder checkboxes support indeterminate state (set via `ref` callback, not a React prop). Empty selection = full exploration fallback.
+
+On confirm, `DocPageClient` POSTs `{ owner, repo, filePath, sha, selectedPaths }` to `/api/ai/auto-doc`. The route validates auth and `filePath` before opening the SSE stream. It runs `runAutoDocAgent()` — a Claude tool_use loop with two tools (`list_repo_tree`, `read_file`). Limits: 20 file reads, 5 tree calls, 30 loop iterations. When any limit is hit the loop breaks and sends a "wrap up now" message to the model for a graceful final generation — no error is surfaced to the user. If `selectedPaths` is non-empty, the system prompt includes a focus block telling the model to prioritize those paths. The route streams SSE progress events (`status` / `done` / `error`) and commits the result directly. The client updates content + SHA in place on completion. No review step.
 
 ## Environment variables
 
@@ -157,6 +161,7 @@ DATABASE_URL=./dockit.db  # SQLite, Phase 10
 | 8     | Full-text search (MiniSearch)                    | ✅ Done    |
 | 9     | AI assistant (Anthropic, ChatPanel, DiffPreview) | ✅ Done    |
 | —     | Source repo linking + auto-doc agent             | ✅ Done    |
+| —     | Auto-doc file selection modal                    | ✅ Done    |
 | 10    | Share links (SQLite, read-only viewer)           | 🔲 Pending |
 
 ## What's NOT in v1
