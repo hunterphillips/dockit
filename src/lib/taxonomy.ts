@@ -3,6 +3,7 @@ import type { FileChange } from "./github-client";
 export interface ProjectConfig {
   displayNames: Record<string, string>;
   icons: Record<string, string>;
+  linkedRepo?: { owner: string; repo: string };
 }
 
 export const DEFAULT_CONFIG: ProjectConfig = {

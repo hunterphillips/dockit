@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import DocViewer from "@/components/docs/DocViewer";
 import RawEditor from "@/components/docs/RawEditor";
 import { useAIPanel } from "@/context/AIPanelContext";
+import { useProject } from "@/context/ProjectContext";
 import styles from "./DocPageClient.module.css";
 
 // BlockNote uses browser APIs — load client-side only
@@ -36,6 +37,11 @@ export default function DocPageClient({
   const [sha, setSha] = useState(initialSha);
 
   const { setDocState, onEditAppliedRef } = useAIPanel();
+  const { config } = useProject();
+
+  const [autoDocStatus, setAutoDocStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [autoDocMessage, setAutoDocMessage] = useState("");
+  const autoDocAbortRef = useRef<AbortController | null>(null);
 
   // Register current doc state in AI panel context
   useEffect(() => {
@@ -56,11 +62,91 @@ export default function DocPageClient({
     setMode("view");
   };
 
+  async function startAutoDoc() {
+    autoDocAbortRef.current = new AbortController();
+    setAutoDocStatus("running");
+    setAutoDocMessage("Starting…");
+
+    try {
+      const res = await fetch("/api/ai/auto-doc", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ owner, repo, filePath, sha }),
+        signal: autoDocAbortRef.current.signal,
+      });
+
+      if (!res.ok || !res.body) {
+        setAutoDocMessage("Request failed");
+        setAutoDocStatus("error");
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(line.slice(6)) as {
+              type: "status" | "done" | "error";
+              message?: string;
+              sha?: string;
+              content?: string;
+            };
+
+            if (event.type === "status") {
+              setAutoDocMessage(event.message ?? "");
+            } else if (event.type === "done") {
+              if (event.content) setContent(event.content);
+              if (event.sha) setSha(event.sha);
+              setAutoDocStatus("done");
+              setAutoDocMessage("Done");
+              setTimeout(() => {
+                setAutoDocStatus("idle");
+                setAutoDocMessage("");
+              }, 2000);
+            } else if (event.type === "error") {
+              setAutoDocMessage(event.message ?? "Unknown error");
+              setAutoDocStatus("error");
+            }
+          } catch {
+            // malformed event — skip
+          }
+        }
+      }
+    } catch (err) {
+      if ((err as Error).name !== "AbortError") {
+        setAutoDocMessage(err instanceof Error ? err.message : "Unknown error");
+        setAutoDocStatus("error");
+      }
+    }
+  }
+
   return (
     <>
       {mode === "view" && (
         <div className={styles.viewWrapper}>
           <div className={styles.viewToolbar}>
+            {config.linkedRepo && (
+              autoDocStatus === "idle" ? (
+                <button className={styles.autoDocBtn} onClick={startAutoDoc}>
+                  ✦ Auto-document
+                </button>
+              ) : (
+                <span className={`${styles.autoDocStatus} ${autoDocStatus === "error" ? styles.autoDocStatusError : ""}`}>
+                  {autoDocMessage}
+                </span>
+              )
+            )}
             <button
               className={styles.editBtn}
               onClick={() => { setEditorType("wysiwyg"); setMode("edit"); }}

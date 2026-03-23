@@ -55,13 +55,16 @@ src/
         file/route.ts                 # GET/PUT — read or write a file; PUT accepts rawBase64 flag for binary
         commit/route.ts               # POST — multi-file atomic commit via Git Data API
         scaffold/route.ts             # POST — initialize default doc template in a repo
+        project/route.ts              # POST — create new dockit repo (tagged + scaffolded)
+        project/link/route.ts         # PUT — set or clear linkedRepo in docs/.meta/config.json
       ai/
         chat/route.ts                 # POST — qa mode: SSE stream; edit mode: full JSON { proposed }
+        auto-doc/route.ts             # POST — SSE; runs auto-doc agent against linked source repo, commits result
   components/
     layout/
       AppShell.tsx                    # Grid layout (sidebar + header + main)
       Sidebar.tsx                     # Collapsible doc tree, reads from ProjectContext
-      Header.tsx                      # Breadcrumb, SearchBar, user menu
+      Header.tsx                      # Breadcrumb, SearchBar, link-status button, AI toggle, user menu
       SearchBar.tsx                   # Live full-text search dropdown (MiniSearch)
     docs/
       DocViewer.tsx                   # react-markdown renderer (GFM, raw HTML, frontmatter)
@@ -81,6 +84,7 @@ src/
     search.ts                         # MiniSearch index: buildSearchIndex, searchIndex, SearchResult
     assets.ts                         # uploadAsset() — encodes file as base64, commits to .meta/assets/
     ai.ts                             # assembleDocContext() — fetches all docs, truncates at 150K chars
+    auto-doc-agent.ts                 # Claude tool_use loop: explores source repo (list_repo_tree + read_file), returns markdown
 ```
 
 ## Key conventions
@@ -106,7 +110,7 @@ Next.js 16 uses `src/proxy.ts` (not `src/middleware.ts`) for route middleware. T
 - Only `docs/` paths are shown in the sidebar
 - `docs/.meta/` is hidden from the tree and never shown in the UI (filtered in `tree/route.ts`)
 - `_index.md` files are section landing pages — hidden from sidebar items, but their parent folder is clickable
-- `docs/.meta/config.json` holds display names and icon mappings; parsed by `taxonomy.ts`
+- `docs/.meta/config.json` holds display names, icon mappings, and the optional `linkedRepo: { owner, repo }` field; parsed by `taxonomy.ts`
 
 ### BlockNote editor
 
@@ -121,6 +125,10 @@ On save, `DocEditor.tsx` passes the stored `sha` to `PUT /api/github/file`. A 40
 ### AI assistant
 
 `AIPanelContext` is the bridge between `ChatPanel` (fixed overlay, lives in `AppShell`) and `DocPageClient` (knows the current file path/content/sha). `DocPageClient` writes its state to context on every render; `onEditAppliedRef` is a callback ref ChatPanel calls after a successful commit to update DocPageClient's local state. Model: `claude-sonnet-4-6`.
+
+### Auto-doc agent
+
+When a project has `linkedRepo` set in config, a "✦ Auto-document" button appears on doc pages. It POSTs to `/api/ai/auto-doc`, which runs `runAutoDocAgent()` — a Claude tool_use loop with two tools (`list_repo_tree`, `read_file`, max 15 reads) that explores the source repo and writes the doc section. The route streams SSE progress events (`status` / `done` / `error`) and commits the result directly. The client reads the stream and updates content + SHA in place on completion. No review step.
 
 ## Environment variables
 
@@ -148,6 +156,7 @@ DATABASE_URL=./dockit.db  # SQLite, Phase 10
 | 7     | Asset upload (.meta/assets/)                     | ✅ Done    |
 | 8     | Full-text search (MiniSearch)                    | ✅ Done    |
 | 9     | AI assistant (Anthropic, ChatPanel, DiffPreview) | ✅ Done    |
+| —     | Source repo linking + auto-doc agent             | ✅ Done    |
 | 10    | Share links (SQLite, read-only viewer)           | 🔲 Pending |
 
 ## What's NOT in v1
