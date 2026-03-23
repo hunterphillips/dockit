@@ -7,104 +7,170 @@ import styles from "./ProjectSelector.module.css";
 
 export default function ProjectSelector() {
   const router = useRouter();
-  const [repos, setRepos] = useState<(Repo & { hasDocsFolder?: boolean })[]>([]);
+  const [projects, setProjects] = useState<Repo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [initializing, setInitializing] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [formName, setFormName] = useState("");
+  const [formDesc, setFormDesc] = useState("");
+  const [formPrivate, setFormPrivate] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/github/repos")
       .then((r) => r.json())
-      .then(async (repoList: Repo[]) => {
-        // Check which repos have a docs/ folder via the tree API
-        const withDocs = await Promise.all(
-          repoList.map(async (r) => {
-            try {
-              const tree = await fetch(
-                `/api/github/tree?owner=${r.owner}&repo=${r.name}`
-              ).then((res) => res.json()) as { path: string }[];
-              const hasDocsFolder = Array.isArray(tree) && tree.some((n) => n.path?.startsWith("docs/"));
-              return { ...r, hasDocsFolder };
-            } catch {
-              return { ...r, hasDocsFolder: false };
-            }
-          })
-        );
-        setRepos(withDocs);
-      })
+      .then((data: Repo[]) => setProjects(data))
       .finally(() => setLoading(false));
   }, []);
 
-  const initDocs = async (repo: Repo) => {
-    const key = `${repo.owner}/${repo.name}`;
-    setInitializing(key);
+  const createProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formName.trim()) return;
+    setCreating(true);
+    setFormError(null);
     try {
-      const res = await fetch("/api/github/scaffold", {
+      const res = await fetch("/api/github/project", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ owner: repo.owner, repo: repo.name }),
+        body: JSON.stringify({
+          name: formName.trim(),
+          description: formDesc.trim(),
+          private: formPrivate,
+        }),
       });
+      const data = await res.json() as { owner?: string; repo?: string; error?: string };
       if (!res.ok) {
-        const { error } = await res.json() as { error: string };
-        alert(`Failed to initialize: ${error}`);
+        setFormError(data.error ?? "Failed to create project");
         return;
       }
-      router.push(`/${repo.owner}/${repo.name}`);
+      router.push(`/${data.owner}/${data.repo}`);
+    } catch {
+      setFormError("Network error, please try again");
     } finally {
-      setInitializing(null);
+      setCreating(false);
     }
+  };
+
+  const cancelForm = () => {
+    setShowForm(false);
+    setFormName("");
+    setFormDesc("");
+    setFormPrivate(false);
+    setFormError(null);
   };
 
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <h1 className={styles.wordmark}>Dockit</h1>
-        <p className={styles.tagline}>Choose a repository to open or initialize documentation.</p>
+        <div className={styles.headerTop}>
+          <div>
+            <h1 className={styles.wordmark}>Dockit</h1>
+            <p className={styles.tagline}>Your documentation projects.</p>
+          </div>
+          {!showForm && (
+            <button className={styles.newProjectBtn} onClick={() => setShowForm(true)}>
+              + New Project
+            </button>
+          )}
+        </div>
       </div>
 
-      {loading && <p className={styles.empty}>Loading repositories…</p>}
+      {showForm && (
+        <div className={styles.formCard}>
+          <h2 className={styles.formTitle}>New Project</h2>
+          <form onSubmit={createProject} className={styles.form}>
+            <div className={styles.fieldGroup}>
+              <label className={styles.label} htmlFor="proj-name">
+                Project name
+              </label>
+              <input
+                id="proj-name"
+                className={styles.input}
+                type="text"
+                placeholder="my-project-docs"
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                autoFocus
+                required
+              />
+            </div>
+            <div className={styles.fieldGroup}>
+              <label className={styles.label} htmlFor="proj-desc">
+                Description <span className={styles.optional}>(optional)</span>
+              </label>
+              <input
+                id="proj-desc"
+                className={styles.input}
+                type="text"
+                placeholder="Documentation for…"
+                value={formDesc}
+                onChange={(e) => setFormDesc(e.target.value)}
+              />
+            </div>
+            <label className={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={formPrivate}
+                onChange={(e) => setFormPrivate(e.target.checked)}
+              />
+              <span>Private repository</span>
+            </label>
+            {formError && <p className={styles.formError}>{formError}</p>}
+            <div className={styles.formActions}>
+              <button
+                type="submit"
+                className={styles.createBtn}
+                disabled={creating || !formName.trim()}
+              >
+                {creating ? "Creating…" : "Create Project"}
+              </button>
+              <button
+                type="button"
+                className={styles.cancelBtn}
+                onClick={cancelForm}
+                disabled={creating}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
-      {!loading && repos.length === 0 && (
-        <p className={styles.empty}>No repositories found.</p>
+      {loading && <p className={styles.empty}>Loading projects…</p>}
+
+      {!loading && projects.length === 0 && !showForm && (
+        <div className={styles.emptyState}>
+          <p className={styles.emptyHeading}>No projects yet.</p>
+        </div>
       )}
 
       <div className={styles.grid}>
-        {repos.map((repo) => {
-          const key = `${repo.owner}/${repo.name}`;
-          const isInitializing = initializing === key;
-
+        {projects.map((project) => {
+          const key = `${project.owner}/${project.name}`;
           return (
-            <div key={key} className={styles.card}>
+            <div
+              key={key}
+              className={styles.card}
+              onClick={() => router.push(`/${project.owner}/${project.name}`)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) =>
+                e.key === "Enter" && router.push(`/${project.owner}/${project.name}`)
+              }
+            >
               <div className={styles.cardTop}>
                 <div className={styles.cardMeta}>
-                  <span className={styles.cardOwner}>{repo.owner}</span>
-                  <h2 className={styles.cardName}>{repo.name}</h2>
-                  {repo.description && (
-                    <p className={styles.cardDesc}>{repo.description}</p>
+                  <span className={styles.cardOwner}>{project.owner}</span>
+                  <h2 className={styles.cardName}>{project.name}</h2>
+                  {project.description && (
+                    <p className={styles.cardDesc}>{project.description}</p>
                   )}
                 </div>
-                {repo.private && <span className={styles.privateBadge}>Private</span>}
+                {project.private && <span className={styles.privateBadge}>Private</span>}
               </div>
-
               <div className={styles.cardFooter}>
-                {repo.hasDocsFolder ? (
-                  <>
-                    <span className={styles.docsBadge}>Docs initialized</span>
-                    <button
-                      className={styles.openBtn}
-                      onClick={() => router.push(`/${repo.owner}/${repo.name}`)}
-                    >
-                      Open →
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    className={styles.initBtn}
-                    onClick={() => initDocs(repo)}
-                    disabled={isInitializing}
-                  >
-                    {isInitializing ? "Initializing…" : "Initialize Docs"}
-                  </button>
-                )}
+                <span className={styles.openLink}>Open →</span>
               </div>
             </div>
           );

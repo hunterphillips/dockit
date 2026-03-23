@@ -36,13 +36,44 @@ export async function listRepos(token: string): Promise<Repo[]> {
     per_page: 100,
     affiliation: "owner,collaborator,organization_member",
   });
-  return data.map((r) => ({
-    owner: r.owner.login,
-    name: r.name,
-    description: r.description,
-    private: r.private,
-    defaultBranch: r.default_branch,
-  }));
+  return data
+    .filter((r) => r.topics?.includes("dockit"))
+    .map((r) => ({
+      owner: r.owner.login,
+      name: r.name,
+      description: r.description,
+      private: r.private,
+      defaultBranch: r.default_branch,
+    }));
+}
+
+export async function createRepo(
+  token: string,
+  name: string,
+  description: string,
+  isPrivate: boolean
+): Promise<{ owner: string; name: string; defaultBranch: string }> {
+  const octokit = getOctokit(token);
+  const { data } = await octokit.repos.createForAuthenticatedUser({
+    name,
+    description,
+    private: isPrivate,
+    auto_init: true,
+  });
+  return {
+    owner: data.owner.login,
+    name: data.name,
+    defaultBranch: data.default_branch,
+  };
+}
+
+export async function addDocKitTopic(
+  token: string,
+  owner: string,
+  repo: string
+): Promise<void> {
+  const octokit = getOctokit(token);
+  await octokit.repos.replaceAllTopics({ owner, repo, names: ["dockit"] });
 }
 
 export async function getRepoTree(

@@ -4,7 +4,7 @@
 
 Dockit is a GitHub-backed documentation platform for cross-functional teams. It is a Next.js UI layer over a GitHub repo — GitHub is the source of truth for all document content. The app has no document database; it commits directly to GitHub via Octokit.
 
-Target users: PMs, business analysts, architects, and non-technical stakeholders. The editing experience is WYSIWYG, never raw markdown.
+Target users: PMs, business analysts, architects, and product stakeholders. The editing experience is WYSIWYG, never raw markdown.
 
 ## ⚠️ Next.js version warning
 
@@ -86,32 +86,40 @@ src/
 ## Key conventions
 
 ### Auth
+
 All GitHub tokens stay server-side. `getToken()` reads the session and returns the access token or throws. API routes call `getToken()` at the top — no token means 401.
 
 ### GitHub as backend
+
 No database for document content. Read = `GET /api/github/file`. Write = `PUT /api/github/file` (pass `sha` for updates; GitHub rejects on SHA mismatch → 409 = conflict). Multi-file commits use the Git Data API via `commitFiles()`.
 
 ### CSS design system
+
 Light theme (Notion-style). All colors, spacing, typography via CSS custom properties defined in `globals.css`. **No dark mode.** CSS Modules for component-scoped styles. Never use inline styles for anything that belongs in the design system.
 
 ### Middleware filename
+
 Next.js 16 uses `src/proxy.ts` (not `src/middleware.ts`) for route middleware. The export interface is the same (`export default auth(...)`, `export const config = {...}`).
 
 ### Doc tree conventions
+
 - Only `docs/` paths are shown in the sidebar
 - `docs/.meta/` is hidden from the tree and never shown in the UI (filtered in `tree/route.ts`)
 - `_index.md` files are section landing pages — hidden from sidebar items, but their parent folder is clickable
 - `docs/.meta/config.json` holds display names and icon mappings; parsed by `taxonomy.ts`
 
 ### BlockNote editor
+
 - Loaded client-side only via `dynamic(() => import(...), { ssr: false })`
 - `uploadFile` handler on the editor calls `uploadAsset()` in `lib/assets.ts`
 - Binary asset uploads use `rawBase64: true` flag on the file PUT route to skip UTF-8 encoding
 
 ### SHA-based concurrency
+
 On save, `DocEditor.tsx` passes the stored `sha` to `PUT /api/github/file`. A 409 response means someone else saved first → show conflict banner. The user must reload.
 
 ### AI assistant
+
 `AIPanelContext` is the bridge between `ChatPanel` (fixed overlay, lives in `AppShell`) and `DocPageClient` (knows the current file path/content/sha). `DocPageClient` writes its state to context on every render; `onEditAppliedRef` is a callback ref ChatPanel calls after a successful commit to update DocPageClient's local state. Model: `claude-sonnet-4-6`.
 
 ## Environment variables
@@ -129,18 +137,18 @@ DATABASE_URL=./dockit.db  # SQLite, Phase 10
 
 ## Implementation status
 
-| Phase | Feature | Status |
-|---|---|---|
-| 1 | Bootstrap, design system, GitHub OAuth | ✅ Done |
-| 2 | GitHub integration layer (Octokit + API routes) | ✅ Done |
-| 3 | Navigation, project selector, sidebar | ✅ Done |
-| 4 | Document viewing (react-markdown) | ✅ Done |
-| 5 | Scaffolding (default template) | ✅ Done |
-| 6 | Document editing (BlockNote, SHA concurrency) | ✅ Done |
-| 7 | Asset upload (.meta/assets/) | ✅ Done |
-| 8 | Full-text search (MiniSearch) | ✅ Done |
-| 9 | AI assistant (Anthropic, ChatPanel, DiffPreview) | ✅ Done |
-| 10 | Share links (SQLite, read-only viewer) | 🔲 Pending |
+| Phase | Feature                                          | Status     |
+| ----- | ------------------------------------------------ | ---------- |
+| 1     | Bootstrap, design system, GitHub OAuth           | ✅ Done    |
+| 2     | GitHub integration layer (Octokit + API routes)  | ✅ Done    |
+| 3     | Navigation, project selector, sidebar            | ✅ Done    |
+| 4     | Document viewing (react-markdown)                | ✅ Done    |
+| 5     | Scaffolding (default template)                   | ✅ Done    |
+| 6     | Document editing (BlockNote, SHA concurrency)    | ✅ Done    |
+| 7     | Asset upload (.meta/assets/)                     | ✅ Done    |
+| 8     | Full-text search (MiniSearch)                    | ✅ Done    |
+| 9     | AI assistant (Anthropic, ChatPanel, DiffPreview) | ✅ Done    |
+| 10    | Share links (SQLite, read-only viewer)           | 🔲 Pending |
 
 ## What's NOT in v1
 
