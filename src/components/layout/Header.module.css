@@ -53,7 +53,9 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-primary);
   outline: none;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .searchInput:focus {
@@ -63,6 +65,153 @@
 
 .searchInput::placeholder {
   color: var(--color-text-tertiary);
+}
+
+/* Link dot */
+.linkWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.linkBtn {
+  height: 30px;
+  padding: 0 var(--space-2);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition:
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.linkBtn:hover {
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+}
+
+.linkBtnActive {
+  color: var(--color-status-accepted);
+}
+
+.linkBtnActive:hover {
+  color: var(--color-status-accepted);
+  border-color: var(--color-status-accepted);
+  background: #f0faf3;
+}
+
+.linkPopover {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-2);
+  min-width: 260px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.linkPopoverLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.linkPopoverRepo {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+}
+
+.linkPopoverInput {
+  width: 100%;
+  height: 30px;
+  padding: 0 var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  outline: none;
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.linkPopoverInput:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px var(--color-accent-subtle);
+}
+
+.linkPopoverInput::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.linkPopoverActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.linkPopoverBtn {
+  height: 28px;
+  padding: 0 var(--space-3);
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.linkPopoverBtn:hover:not(:disabled) {
+  border-color: var(--color-text-secondary);
+  color: var(--color-text-primary);
+}
+
+.linkPopoverBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.linkPopoverBtnPrimary {
+  height: 28px;
+  padding: 0 var(--space-4);
+  background: var(--color-accent);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-inverse);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.linkPopoverBtnPrimary:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.linkPopoverBtnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* AI toggle button */
@@ -80,7 +229,9 @@
   align-items: center;
   gap: var(--space-2);
   flex-shrink: 0;
-  transition: border-color var(--transition-fast), color var(--transition-fast),
+  transition:
+    border-color var(--transition-fast),
+    color var(--transition-fast),
     background var(--transition-fast);
 }
 
@@ -191,7 +342,9 @@
   background: none;
   border: none;
   cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
   text-decoration: none;
 }
 
