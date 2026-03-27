@@ -2,7 +2,7 @@
 
 A GitHub-backed documentation platform for cross-functional teams. Dockit is a Next.js UI layer over a GitHub repository — GitHub is the source of truth for all document content. There is no document database; reads and writes go directly to GitHub via the Octokit REST client.
 
-Target users: PMs, business analysts, architects, and product stakeholders. The editing experience is always WYSIWYG, never raw markdown.
+![example screen](public/homepage.png)
 
 ## Features
 
@@ -84,4 +84,3 @@ npm run dev      # start dev server (localhost:3000)
 npm run build    # production build + type check
 npm run start    # start production server
 ```
-
